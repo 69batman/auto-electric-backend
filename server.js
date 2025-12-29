@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 mongoose
-  .connect("mongodb+srv://admin:admin1234@vishwakarmaauto.53vsqjh.mongodb.net/?appName=Vishwakarmaauto")
+  .connect(process.env.MONGODB_URL)
   .then(() => console.log("Database connected"))
   .catch((err) => console.log(err));
 
