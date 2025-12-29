@@ -87,6 +87,7 @@ app.post("/login", async (req, res) => {
 });
 
 /* ---------- HEALTH CHECK ---------- */
+
 app.get("/", (req, res) => {
   res.send("Backend + Database connected");
 });
