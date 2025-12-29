@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -11,26 +13,43 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ✅ MongoDB connection
 mongoose
-  .connect(process.env.MONGODB_URL)
-  .then(() => console.log("Database connected"))
-  .catch((err) => console.log(err));
+  .connect(process.env.MONGODB_URL, {
+    dbName: "autoElectric",
+  })
+  .then(() => console.log("✅ Database connected"))
+  .catch((err) => console.error("❌ MongoDB error:", err));
 
-/* ---------- CONTACT / BOOKING ---------- */
+// ✅ Root check
+app.get("/", (req, res) => {
+  res.send("Backend + Database connected");
+});
+
+// ✅ CONTACT (booking)
 app.post("/contact", async (req, res) => {
+  console.log("📩 CONTACT BODY:", req.body);
+
   try {
     const newContact = new Contact(req.body);
     await newContact.save();
-    res.json({ message: "Contact saved" });
-  } catch (error) {
+    res.status(201).json({ message: "Contact saved" });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Error saving contact" });
   }
 });
 
-/* ---------- AUTH ---------- */
+// ✅ REGISTER
 app.post("/register", async (req, res) => {
+  console.log("🟢 REGISTER BODY:", req.body);
+
   try {
     const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -39,20 +58,28 @@ app.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({
+    const user = new User({
       name,
       email,
       password: hashedPassword,
     });
 
-    await newUser.save();
-    res.json({ message: "User registered successfully" });
-  } catch (error) {
+    await user.save();
+
+    res.status(201).json({
+      message: "User registered successfully",
+      userId: user._id,
+    });
+  } catch (err) {
+    console.error("❌ REGISTER ERROR:", err);
     res.status(500).json({ message: "Registration failed" });
   }
 });
 
+// ✅ LOGIN (ONLY ONCE)
 app.post("/login", async (req, res) => {
+  console.log("🔵 LOGIN BODY:", req.body);
+
   try {
     const { email, password } = req.body;
 
@@ -61,14 +88,14 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const token = jwt.sign(
       { userId: user._id },
-      "SECRET_KEY",
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
@@ -81,20 +108,14 @@ app.post("/login", async (req, res) => {
         email: user.email,
       },
     });
-  } catch (error) {
+  } catch (err) {
+    console.error("❌ LOGIN ERROR:", err);
     res.status(500).json({ message: "Login failed" });
   }
 });
 
-/* ---------- HEALTH CHECK ---------- */
-
-app.get("/", (req, res) => {
-  res.send("Backend + Database connected");
-});
-
-/* ---------- SERVER START (ALWAYS LAST) ---------- */
+// ✅ PORT (Render-safe)
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
